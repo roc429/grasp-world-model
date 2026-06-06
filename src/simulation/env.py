@@ -74,6 +74,7 @@ class SimulationEnv:
         target_joint_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_JOINT, "target_joint")
         self._target_qpos_adr = self.model.jnt_qposadr[target_joint_id]
+        self._target_vel_adr = self.model.jnt_dofadr[target_joint_id]
 
         self._gripper_open = True
         self._gripper_attached = False
@@ -165,6 +166,24 @@ class SimulationEnv:
 
         return rgb, depth_mm
 
+    # ── 物理步进（核心）─────────────────────────────────────
+
+    def _physics_step(self, n: int = 1):
+        """
+        步进物理仿真 n 步。如果正在抓取物体，每步都让物体跟随末端执行器，
+        同时清零物体速度，防止长距离运输时动能累积导致弹飞。
+        """
+        for _ in range(n):
+            if self._gripper_attached:
+                # 目标物体位置 = 末端执行器位置 (模拟夹持)
+                ee_pos = self.data.mocap_pos[self._ee_mocap_id].copy()
+                adr = self._target_qpos_adr
+                # 设置位置
+                self.data.qpos[adr:adr + 3] = ee_pos
+                # 清零速度（free joint: 6 dof velocity），防止动能累积
+                self.data.qvel[self._target_vel_adr:self._target_vel_adr + 6] = 0.0
+            mujoco.mj_step(self.model, self.data)
+
     # ── 执行器控制（供 SimArm 调用）─────────────────────────
 
     def set_ee_position(self, pos_mm: np.ndarray):
@@ -177,12 +196,17 @@ class SimulationEnv:
         pos_m = pos_mm.astype(np.float64) / 1000.0
         # 设置 mocap body 位置
         self.data.mocap_pos[self._ee_mocap_id] = pos_m
-        mujoco.mj_forward(self.model, self.data)
+        # 步进物理（处理抓取附着）
+        self._physics_step()
 
     def move_ee_to(self, target_mm: np.ndarray, velocity: float = 50.0,
                    steps_per_sec: int = 500):
         """
         将末端执行器平滑移动到目标位置（直线轨迹）。
+
+        在移动过程中，每步都进行物理步进，实现：
+          - 碰撞检测（推物体）
+          - 抓取附着（物体跟随末端执行器）
 
         Args:
             target_mm: (3,) 目标位置 [x, y, z] in mm
@@ -203,9 +227,10 @@ class SimulationEnv:
         for i in range(num_steps + 1):
             alpha = i / num_steps
             pos_mm = start_mm + alpha * (target_mm - start_mm)
-            self.set_ee_position(pos_mm)
-            # 步进物理（检测碰撞、推动物体）
-            mujoco.mj_step(self.model, self.data)
+            pos_m = pos_mm.astype(np.float64) / 1000.0
+            self.data.mocap_pos[self._ee_mocap_id] = pos_m
+            # 步进物理（自动处理碰撞 + 抓取附着）
+            self._physics_step()
 
         # 确保精确到达
         self.set_ee_position(target_mm)
@@ -274,16 +299,10 @@ class SimulationEnv:
         self._gripper_open = False
         self._gripper_attached = True
 
-        # 短暂停留（让物理稳定），同时让目标物体跟随末端执行器
-        for _ in range(250):
-            if self._gripper_attached:
-                # 将目标物体位置设置为末端执行器位置 (模拟抓取)
-                ee_pos = self.data.mocap_pos[self._ee_mocap_id].copy()
-                adr = self._target_qpos_adr
-                self.data.qpos[adr:adr + 3] = ee_pos
-            mujoco.mj_step(self.model, self.data)
+        # 短暂停留（让物理稳定），_physics_step 会自动保持物体附着
+        self._physics_step(250)
 
-        # 4. 抬起
+        # 4. 抬起（move_ee_to 中每步都通过 _physics_step 保持附着）
         self.move_ee_to(np.array([x, y, z_safe_mm]), velocity=80)
 
     def execute_place(self, target_xy_mm: np.ndarray, target_z_mm: float,
@@ -312,9 +331,9 @@ class SimulationEnv:
         self._gripper_open = True
         self._gripper_attached = False
 
-        # 让物理稳定
-        for _ in range(100):
-            mujoco.mj_step(self.model, self.data)
+        # 让物理充分稳定（物体掉落、弹跳衰减）
+        for _ in range(30):
+            self._physics_step(10)
 
         # 4. 抬起
         self.move_ee_to(np.array([x, y, z_safe_mm]), velocity=80)

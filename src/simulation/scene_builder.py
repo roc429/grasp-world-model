@@ -65,7 +65,8 @@ def build_mjcf_string(scene_config: Dict) -> str:
 
     <!-- 桌面 (z=0 为桌面顶面) -->
     <body pos="0.2 0 -0.005" name="table">
-      <geom type="box" size="0.25 0.2 0.005" rgba="0.7 0.5 0.3 1" name="table_geom"/>
+      <geom type="box" size="0.25 0.2 0.005" rgba="0.7 0.5 0.3 1" name="table_geom"
+            friction="0.6 0.2 0.1"/>
     </body>
 
     <!-- 目标物体 (红色) — free body 必须在 worldbody 顶层 -->
@@ -73,7 +74,7 @@ def build_mjcf_string(scene_config: Dict) -> str:
       <freejoint name="target_joint"/>
       <geom type="box" size="{t_half[0]} {t_half[1]} {t_half[2]}"
             rgba="1 0 0 1" name="target_geom" density="500"
-            friction="0.5 0.1 0.1"/>
+            friction="0.8 0.3 0.1" margin="0.001"/>
     </body>
 
     <!-- 障碍物 (蓝色) -->
@@ -81,13 +82,14 @@ def build_mjcf_string(scene_config: Dict) -> str:
       <freejoint name="obstacle_joint"/>
       <geom type="box" size="{o_half[0]} {o_half[1]} {o_half[2]}"
             rgba="0 0 1 1" name="obstacle_geom" density="300"
-            friction="0.5 0.1 0.1"/>
+            friction="0.8 0.3 0.1" margin="0.001"/>
     </body>
 
-    <!-- 末端执行器 (mocap body: 由代码控制位置，参与碰撞但不被推动) -->
+    <!-- 末端执行器 (mocap body: 由代码控制位置，参与碰撞但不被推动)
+         半径 12mm，高度 30mm — 模拟手指/推杆 -->
     <body mocap="true" pos="0.25 0 0.08" name="ee_mocap">
-      <geom type="cylinder" size="0.008 0.025" rgba="0.6 0.6 0.6 1" name="ee_geom"
-            friction="0.8 0.1 0.1"/>
+      <geom type="cylinder" size="0.012 0.030" rgba="0.6 0.6 0.6 1" name="ee_geom"
+            friction="1.0 0.2 0.1" margin="0.001"/>
     </body>
 
     <!-- 放置区标记 (绿色半透明圆盘) -->
