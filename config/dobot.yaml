@@ -1,0 +1,20 @@
+# Dobot Magician 机械臂连接参数
+connection:
+  port: "/dev/ttyUSB0"
+  baudrate: 115200
+
+safety:
+  z_upper: 100
+  z_lower: -20
+  x_range: [50, 300]
+  y_range: [-150, 150]
+  max_velocity: 100
+  desk_z: 0
+
+end_effector:
+  type: "gripper"  # "gripper" or "suction_cup"
+
+motion:
+  velocity_ratio: 50
+  acceleration_ratio: 50
+  z_safe: 30

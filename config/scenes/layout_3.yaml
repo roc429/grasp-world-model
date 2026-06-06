@@ -1,0 +1,15 @@
+# 场景布局 3
+layout_id: 3
+description: "待定义"
+objects:
+  target:
+    position: [0, 0, 0]
+    size: [0.02, 0.02, 0.02]
+    color: "red"
+  obstacle:
+    position: [0, 0, 0]
+    size: [0, 0, 0]
+    color: "blue"
+placement_zone:
+  position: [0, 0, 0]
+  radius: 0.05

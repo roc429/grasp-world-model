@@ -1,0 +1,49 @@
+# 默认参数配置 — 所有可调参数集中管理
+
+scene:
+  layouts: [1, 2, 3]
+  desk_z: 0
+  workspace:
+    x: [50, 300]
+    y: [-150, 150]
+    z: [-20, 150]
+
+camera:
+  width: 640
+  height: 480
+  fx: 525.0
+  fy: 525.0
+  cx: 319.5
+  cy: 239.5
+
+world_model:
+  type: "mlp_gru"
+  state_dim: 10
+  action_dim: 4
+  hidden_dim: 256
+  num_layers: 2
+  learning_rate: 0.001
+  batch_size: 64
+  epochs: 100
+
+planner:
+  type: "cem"
+  horizon: 5
+  num_candidates: 200
+  cem_iterations: 5
+  elite_ratio: 0.2
+
+arm:
+  type: "sim"
+  port: "/dev/ttyUSB0"
+  baudrate: 115200
+  velocity_ratio: 50
+  acceleration_ratio: 50
+  z_safe: 30
+
+experiment:
+  name: "exp_001"
+  num_trials: 20
+  seed: 42
+  save_video: true
+  log_dir: "experiments"
