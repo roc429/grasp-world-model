@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+.conda/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Model weights (use Git LFS or cloud storage)
+*.pt
+*.pth
+*.ckpt
+*.onnx
+models/
+
+# Data
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+
+# Logs
+logs/
+*.log
+
+# Experiment outputs
+experiments/*/
+!experiments/*/.gitkeep
+
+# Videos
+videos/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+*.key
+*.pem
+
+# ROS
+build/
+devel/
+install/

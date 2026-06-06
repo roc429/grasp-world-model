@@ -1,15 +1,15 @@
-# 场景布局 2
+# 场景布局 2: 遮挡 — 目标物体被障碍物挡住，需要先推开
 layout_id: 2
-description: "待定义"
+description: "目标物体被障碍物遮挡，需要先推再抓"
 objects:
   target:
-    position: [0, 0, 0]
-    size: [0.02, 0.02, 0.02]
+    position: [230, 0, 10]       # 目标在后方
+    size: [20, 20, 20]
     color: "red"
   obstacle:
-    position: [0, 0, 0]
-    size: [0, 0, 0]
+    position: [180, 0, 10]       # 障碍物在前方挡住目标
+    size: [15, 15, 15]
     color: "blue"
 placement_zone:
-  position: [0, 0, 0]
-  radius: 0.05
+  position: [200, -100, 10]
+  radius: 30

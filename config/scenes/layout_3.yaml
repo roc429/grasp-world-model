@@ -1,15 +1,15 @@
-# 场景布局 3
+# 场景布局 3: 角落 — 目标物体在角落，需要推到开阔区域再抓
 layout_id: 3
-description: "待定义"
+description: "目标物体在角落，需要先推出来再抓取"
 objects:
   target:
-    position: [0, 0, 0]
-    size: [0.02, 0.02, 0.02]
+    position: [80, -110, 10]     # 目标在左前角落
+    size: [20, 20, 20]
     color: "red"
   obstacle:
-    position: [0, 0, 0]
-    size: [0, 0, 0]
+    position: [150, -80, 10]     # 障碍物挡住出路
+    size: [15, 15, 15]
     color: "blue"
 placement_zone:
-  position: [0, 0, 0]
-  radius: 0.05
+  position: [200, 80, 10]        # 放置区在对角
+  radius: 30
