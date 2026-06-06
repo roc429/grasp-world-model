@@ -1,7 +1,6 @@
 """场景搭建工具 — 从 YAML 配置生成 MuJoCo 场景 XML"""
 
 import yaml
-import numpy as np
 from typing import Dict
 
 
@@ -96,6 +95,11 @@ def build_mjcf_string(scene_config: Dict) -> str:
     <body pos="{p_pos[0]} {p_pos[1]} 0.002" name="placement_marker">
       <geom type="cylinder" size="{p_radius} 0.001" rgba="0 1 0 0.25" name="placement_geom"/>
     </body>
+
+    <!-- 俯视相机: 固定在桌面上方，向下拍摄 -->
+    <camera name="overhead" mode="fixed"
+            pos="0.2 0 0.4" zaxis="0 0 -1"
+            fovy="60" resolution="640 480"/>
   </worldbody>
 
   <sensor>
@@ -105,14 +109,6 @@ def build_mjcf_string(scene_config: Dict) -> str:
     <!-- 末端执行器位置 -->
     <framepos objtype="geom" objname="ee_geom" name="ee_pos"/>
   </sensor>
-
-  <!-- 俯视相机: 固定在桌面上方，向下拍摄 -->
-  <worldbody>
-    <camera name="overhead" mode="fixed"
-            pos="0.2 0 0.4" zaxis="0 0 -1"
-            fovy="60"
-            resolution="640 480"/>
-  </worldbody>
 </mujoco>'''
     return xml
 

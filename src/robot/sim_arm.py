@@ -32,15 +32,15 @@ class SimArm(ArmController):
 
     def connect(self, port: str = "", baudrate: int = 115200) -> bool:
         if self._env is None:
-            print("[SimArm] ⚠ 未绑定仿真环境，请先调用 set_env()")
+            print("[SimArm] WARNING: env not set, call set_env() first")
             return False
         self._connected = True
-        print("[SimArm] ✅ 已连接到仿真环境")
+        print("[SimArm] Connected to simulation environment")
         return True
 
     def disconnect(self) -> bool:
         self._connected = False
-        print("[SimArm] 已断开仿真连接")
+        print("[SimArm] Disconnected from simulation")
         return True
 
     # ── 位姿读取 ────────────────────────────────────────
@@ -104,8 +104,10 @@ class SimArm(ArmController):
         if self._env is not None:
             if grip:
                 self._env._gripper_open = False
+                self._env._gripper_attached = True   # 仿真中闭合夹爪 = 物体附着
             else:
                 self._env._gripper_open = True
+                self._env._gripper_attached = False  # 松开 = 释放物体
         return True
 
     def set_suction_cup(self, suck: bool) -> bool:
@@ -123,5 +125,5 @@ class SimArm(ArmController):
     def emergency_stop(self) -> bool:
         """紧急停止"""
         self._connected = False
-        print("[SimArm] ⚠ 紧急停止！")
+        print("[SimArm] EMERGENCY STOP")
         return True

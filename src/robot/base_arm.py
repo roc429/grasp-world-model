@@ -1,4 +1,5 @@
 """机械臂控制抽象基类"""
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import numpy as np
@@ -97,7 +98,7 @@ class ArmController(ABC):
         self.move_to_pose(Pose(x, y, z_safe, r))
         self.move_to_pose(Pose(x, y, z, r))
         self.set_gripper(True)
-        import time; time.sleep(0.5)
+        time.sleep(0.5)
         self.move_to_pose(Pose(x, y, z_safe, r))
         return True
 
@@ -108,6 +109,6 @@ class ArmController(ABC):
         self.move_to_pose(Pose(x, y, z_safe, r))
         self.move_to_pose(Pose(x, y, z, r))
         self.set_gripper(False)
-        import time; time.sleep(0.5)
+        time.sleep(0.5)
         self.move_to_pose(Pose(x, y, z_safe, r))
         return True

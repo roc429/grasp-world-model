@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 L1 = 135.0          # 大臂长度 (J2 → J3 距离, mm)
 L2 = 147.0          # 小臂长度 (J3 → 末端, mm)
 BASE_HEIGHT = 105.0  # 基座 J2 轴心高度 (mm, 相对桌面)
-WRIST_OFFSET = 0.0   # 腕部偏移 (mm)，Dobot 通常为 0
 
 # 关节限位 (度)
 JOINT_LIMITS = {
@@ -56,7 +55,7 @@ def solve_fk(j1_deg: float, j2_deg: float, j3_deg: float,
 
     Args:
         j1_deg: J1 基座旋转角 (度)
-        j2_deg: J2 肩关节角 (度, 0°=竖直向上)
+        j2_deg: J2 肩关节角 (度, 0°=竖直向下)
         j3_deg: J3 肘关节角 (度)
         j4_deg: J4 腕部旋转角 (度)
 
