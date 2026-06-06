@@ -105,6 +105,14 @@ def build_mjcf_string(scene_config: Dict) -> str:
     <!-- 末端执行器位置 -->
     <framepos objtype="geom" objname="ee_geom" name="ee_pos"/>
   </sensor>
+
+  <!-- 俯视相机: 固定在桌面上方，向下拍摄 -->
+  <worldbody>
+    <camera name="overhead" mode="fixed"
+            pos="0.2 0 0.4" zaxis="0 0 -1"
+            fovy="60"
+            resolution="640 480"/>
+  </worldbody>
 </mujoco>'''
     return xml
 
