@@ -1,0 +1,18 @@
+# 规划器参数
+planner:
+  type: "cem"
+  horizon: 5
+  num_candidates: 200
+  cem_iterations: 5
+  elite_ratio: 0.2
+
+action_space:
+  push_direction_angles: 8        # 方向离散化
+  push_distance_min: 10           # mm
+  push_distance_max: 80           # mm
+  grasp_z_offset: -5              # mm below object top
+
+scoring:
+  graspable_weight: 1.0
+  distance_weight: 0.3
+  collision_penalty: -10.0
