@@ -27,6 +27,11 @@ logger = logging.getLogger(__name__)
 
 # DobotDllType.py 位于魔术师资料包中，不在本仓库内
 # 使用时需将其路径加入 sys.path 或放到 src/robot/ 目录下
+import os as _os
+_dobot_demo_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "dobot_demo")
+if _dobot_demo_dir not in sys.path:
+    sys.path.insert(0, _dobot_demo_dir)
+
 try:
     import DobotDllType as dType
     DOBOT_DLL_AVAILABLE = True

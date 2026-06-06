@@ -55,6 +55,11 @@ Thumbs.db
 *.key
 *.pem
 
+# Dobot DLLs (large binaries, not for git)
+src/robot/dobot_demo/
+src/robot/DobotDllType.py
+src/robot/*.dll
+
 # ROS
 build/
 devel/
