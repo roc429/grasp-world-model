@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell(.\\\\venv\\\\Scripts\\\\Activate.ps1; $env:PYTHONIOENCODING='utf-8'; $env:PYTHONPATH='e:\\\\projects\\\\grasp-world-model'; python scripts/test_arm_connection.py --all-layouts 2>&1)"
-    ]
-  }
-}
