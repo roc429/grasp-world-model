@@ -1,37 +1,33 @@
 #!/usr/bin/env python3
-"""Data collection script."""
+"""数据采集脚本"""
 import sys, os, numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.simulation.env import PushGraspEnv
-from src.utils.config import load_config
 from tqdm import tqdm
+from src.utils.config import load_config
+from src.simulation.env import SimulationEnv
 
 def main():
     config = load_config("config/default.yaml")
-    env = PushGraspEnv(config)
-    total = 3000
+    env = SimulationEnv(config)
+    num_episodes = 100
     data = {"states": [], "actions": [], "next_states": []}
-    per_layout = total // 3
-    for lid in [1, 2, 3]:
-        for _ in tqdm(range(per_layout), desc="Layout {}".format(lid)):
-            state = env.reset(layout_id=lid)
-            obj = env.get_objects_state()["target"]
-            action = np.array([
-                obj[0] + np.random.uniform(-0.02, 0.02),
-                obj[1] + np.random.uniform(-0.02, 0.02),
-                np.random.uniform(0, 2*np.pi),
-                np.random.uniform(0.01, 0.08)
-            ], dtype=np.float32)
-            ns, _, _, _ = env.step(action)
-            data["states"].append(state)
-            data["actions"].append(action)
-            data["next_states"].append(ns)
+
+    for ep in tqdm(range(num_episodes), desc="Collecting data"):
+        state = env.reset()
+        action = np.random.randn(4).astype(np.float32)
+        action[2] = np.random.uniform(0, 2 * np.pi)
+        action[3] = np.random.uniform(10, 80)
+        next_state, reward, done, info = env.step(action)
+        data["states"].append(state)
+        data["actions"].append(action)
+        data["next_states"].append(next_state)
+
+    save_path = "data/raw/push_data.npz"
     os.makedirs("data/raw", exist_ok=True)
-    np.savez("data/raw/push_data.npz",
-             states=np.array(data["states"]),
+    np.savez(save_path, states=np.array(data["states"]),
              actions=np.array(data["actions"]),
              next_states=np.array(data["next_states"]))
-    print("Saved {} samples".format(len(data["states"])))
+    print(f"Saved {len(data['states'])} samples to {save_path}")
     env.close()
 
 if __name__ == "__main__":

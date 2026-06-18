@@ -1,16 +1,15 @@
-# 布局1: 无障碍 - 目标物体可直接抓取（基线）
-id: 1
-description: "目标物体在前方,无障碍物"
-desk:
-  size: [0.40, 0.30, 0.01]
-  pos: [0.18, 0.0, -0.005]
-target:
-  name: "target"
-  size: [0.015, 0.015, 0.015]
-  pos: [0.18, 0.02, 0.015]
-  color: [1.0, 0.2, 0.2, 1.0]
-obstacle:
-  enabled: false
-goal_zone:
-  pos: [0.30, -0.08, 0.005]
-  radius: 0.03
+# 场景布局 1: 无障碍 — 物体在前方可直接抓取
+layout_id: 1
+description: "物体在前方，无障碍物，可直接抓取"
+objects:
+  target:
+    position: [200, 0, 10]       # x, y, z (mm) — 物体在机械臂前方
+    size: [20, 20, 20]           # 边长 20mm 立方体
+    color: "red"
+  obstacle:
+    position: [250, 80, 10]      # 障碍物在旁边，不阻挡
+    size: [15, 15, 15]
+    color: "blue"
+placement_zone:
+  position: [250, -80, 10]       # 放置目标区
+  radius: 30

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Train world model on collected data."""
+"""世界模型训练脚本"""
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.utils.config import load_config
@@ -9,12 +9,9 @@ def main():
     config = load_config("config/world_model.yaml")
     data_path = "data/raw/push_data.npz"
     save_dir = "models/world_model"
-    if not os.path.exists(data_path):
-        print("ERROR: No data found. Run scripts/collect_data.py first.")
-        sys.exit(1)
-    print("Training world model...")
+    print(f"Training {config['model']['type']} world model...")
     model = train_world_model(config, data_path, save_dir)
-    print("Done! Model saved to", save_dir)
+    print(f"Done! Model saved to {save_dir}/world_model.pt")
 
 if __name__ == "__main__":
     main()
