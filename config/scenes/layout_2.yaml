@@ -1,15 +1,20 @@
-# 场景布局 2
-layout_id: 2
-description: "待定义"
-objects:
-  target:
-    position: [0, 0, 0]
-    size: [0.02, 0.02, 0.02]
-    color: "red"
-  obstacle:
-    position: [0, 0, 0]
-    size: [0, 0, 0]
-    color: "blue"
-placement_zone:
-  position: [0, 0, 0]
-  radius: 0.05
+# 布局2: 障碍物遮挡 - 必须先推开障碍物才能抓目标
+id: 2
+description: "障碍物遮挡目标物体"
+desk:
+  size: [0.40, 0.30, 0.01]
+  pos: [0.18, 0.0, -0.005]
+target:
+  name: "target"
+  size: [0.015, 0.015, 0.015]
+  pos: [0.18, 0.05, 0.015]
+  color: [1.0, 0.2, 0.2, 1.0]
+obstacle:
+  enabled: true
+  name: "obstacle"
+  size: [0.015, 0.015, 0.015]
+  pos: [0.18, 0.08, 0.015]
+  color: [0.2, 0.2, 1.0, 1.0]
+goal_zone:
+  pos: [0.30, -0.08, 0.005]
+  radius: 0.03

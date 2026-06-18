@@ -1,15 +1,16 @@
-# 场景布局 1
-layout_id: 1
-description: "待定义"
-objects:
-  target:
-    position: [0, 0, 0]
-    size: [0.02, 0.02, 0.02]
-    color: "red"
-  obstacle:
-    position: [0, 0, 0]
-    size: [0, 0, 0]
-    color: "blue"
-placement_zone:
-  position: [0, 0, 0]
-  radius: 0.05
+# 布局1: 无障碍 - 目标物体可直接抓取（基线）
+id: 1
+description: "目标物体在前方,无障碍物"
+desk:
+  size: [0.40, 0.30, 0.01]
+  pos: [0.18, 0.0, -0.005]
+target:
+  name: "target"
+  size: [0.015, 0.015, 0.015]
+  pos: [0.18, 0.02, 0.015]
+  color: [1.0, 0.2, 0.2, 1.0]
+obstacle:
+  enabled: false
+goal_zone:
+  pos: [0.30, -0.08, 0.005]
+  radius: 0.03

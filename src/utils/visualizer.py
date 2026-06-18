@@ -1,51 +1,36 @@
-"""可视化工具"""
+"""���ӻ�����"""
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from typing import List
 
+def plot_push_trajectory(pred, real, goal, save_path):
+    fig, ax = plt.subplots(figsize=(8, 6))
+    if pred is not None: ax.plot(pred[:,0], pred[:,1], 'b--', label='Predicted')
+    if real is not None: ax.plot(real[:,0], real[:,1], 'r-', label='Actual', lw=2)
+    if pred is not None:
+        ax.scatter(pred[0,0], pred[0,1], c='green', s=150, marker='o', label='Start')
+    ax.scatter(goal[0], goal[1], c='lime', s=200, marker='*', label='Goal')
+    ax.set_xlabel('X (m)'); ax.set_ylabel('Y (m)')
+    ax.set_title('Push-Grasp Trajectory'); ax.legend()
+    ax.grid(True, alpha=0.3); ax.set_aspect('equal')
+    fig.savefig(save_path, dpi=150, bbox_inches='tight'); plt.close(fig)
 
-def plot_trajectory_comparison(
-    pred_traj: np.ndarray,
-    real_traj: np.ndarray,
-    save_path: str = None,
-):
-    """对比预测轨迹 vs 真实轨迹 (2D 俯视图)"""
-    fig, ax = plt.subplots(figsize=(8, 8))
-    ax.plot(pred_traj[:, 0], pred_traj[:, 1], "b--", label="Predicted", alpha=0.7)
-    ax.plot(real_traj[:, 0], real_traj[:, 1], "r-", label="Actual", alpha=0.7)
-    ax.scatter(pred_traj[0, 0], pred_traj[0, 1], c="green", s=100, marker="o", label="Start")
-    ax.scatter(pred_traj[-1, 0], pred_traj[-1, 1], c="red", s=100, marker="x", label="End")
-    ax.set_xlabel("X (mm)")
-    ax.set_ylabel("Y (mm)")
-    ax.set_title("Trajectory: Predicted vs Actual")
-    ax.legend()
-    ax.set_aspect("equal")
-    ax.grid(True, alpha=0.3)
-
-    if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
-    plt.close()
-
-
-def plot_success_rate(
-    success_rates: List[float],
-    labels: List[str],
-    save_path: str = None,
-):
-    """绘制成功率柱状图"""
+def plot_success_rates(rates, labels, save_path):
     fig, ax = plt.subplots(figsize=(8, 5))
-    x = np.arange(len(labels))
-    bars = ax.bar(x, success_rates, width=0.5)
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    ax.set_ylabel("Success Rate")
-    ax.set_ylim(0, 1.1)
-    ax.set_title("Task Success Rate by Layout")
+    ax.bar(labels, rates, color=['green','blue','orange'])
+    ax.set_ylabel('Success Rate'); ax.set_ylim(0, 1.1)
+    ax.set_title('Task Success Rate by Layout')
+    for i, r in enumerate(rates): ax.text(i, r+0.02, f'{r:.0%}', ha='center')
+    fig.savefig(save_path, dpi=150, bbox_inches='tight'); plt.close(fig)
 
-    for bar, rate in zip(bars, success_rates):
-        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.02,
-                f"{rate:.1%}", ha="center", fontsize=10)
-
-    if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
-    plt.close()
+def plot_wm_error(pred_disp, real_disp, save_path):
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.scatter(real_disp[:,0], pred_disp[:,0], alpha=0.5, s=10, label='X')
+    ax.scatter(real_disp[:,1], pred_disp[:,1], alpha=0.5, s=10, label='Y')
+    lims = [min(real_disp.min(), pred_disp.min()), max(real_disp.max(), pred_disp.max())]
+    ax.plot(lims, lims, 'k--', alpha=0.5)
+    ax.set_xlabel('Real displacement'); ax.set_ylabel('Predicted displacement')
+    ax.legend(); ax.grid(True, alpha=0.3); ax.set_aspect('equal')
+    ax.set_title('World Model Prediction Error')
+    fig.savefig(save_path, dpi=150, bbox_inches='tight'); plt.close(fig)

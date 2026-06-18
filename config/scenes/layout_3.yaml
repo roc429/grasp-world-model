@@ -1,15 +1,16 @@
-# 场景布局 3
-layout_id: 3
-description: "待定义"
-objects:
-  target:
-    position: [0, 0, 0]
-    size: [0.02, 0.02, 0.02]
-    color: "red"
-  obstacle:
-    position: [0, 0, 0]
-    size: [0, 0, 0]
-    color: "blue"
-placement_zone:
-  position: [0, 0, 0]
-  radius: 0.05
+# 布局3: 物体在角落 - 需要推近才能抓
+id: 3
+description: "物体在桌面角落,需推近到可抓取区域"
+desk:
+  size: [0.40, 0.30, 0.01]
+  pos: [0.18, 0.0, -0.005]
+target:
+  name: "target"
+  size: [0.015, 0.015, 0.015]
+  pos: [0.05, 0.10, 0.015]
+  color: [1.0, 0.2, 0.2, 1.0]
+obstacle:
+  enabled: false
+goal_zone:
+  pos: [0.30, -0.08, 0.005]
+  radius: 0.03

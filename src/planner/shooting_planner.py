@@ -1,32 +1,27 @@
-"""随机 Shooting 规划器"""
+"""��� Shooting �滮��"""
 import numpy as np
-from typing import Tuple
 from src.planner.base_planner import Planner
-from src.planner.action_sampler import sample_push_actions
-
 
 class ShootingPlanner(Planner):
-    """随机 Shooting: 采样 N 条序列, 选评分最高的"""
-
-    def __init__(self, config: dict):
+    def __init__(self, config):
         super().__init__(config)
-        self.num_candidates = config.get("num_candidates", 200)
+        self.num_candidates = config.get('num_candidates', 100)
 
-    def plan(self, state: np.ndarray,
-             world_model: "WorldModel") -> Tuple[np.ndarray, float]:
+    def plan(self, state, world_model):
         best_action = None
-        best_score = -float("inf")
-
-        actions = sample_push_actions(state, self.config, self.num_candidates)
-
+        best_score = -float('inf')
+        action_dim = 4
+        obj_x, obj_y = state[0], state[1]
         for i in range(self.num_candidates):
-            action = actions[i]
-            action_seq = action.reshape(1, -1)  # 单步, shape (1, action_dim)
-            _, scores = world_model.predict_trajectory(state, action_seq)
-            score = scores[0]
-
+            action = np.array([
+                obj_x + np.random.uniform(-0.02, 0.02),
+                obj_y + np.random.uniform(-0.02, 0.02),
+                np.random.uniform(0, 2 * np.pi),
+                np.random.uniform(0.01, 0.08)
+            ], dtype=np.float32)
+            _, scores = world_model.predict_trajectory(state, action.reshape(1, -1))
+            score = float(scores[0])
             if score > best_score:
                 best_score = score
-                best_action = action
-
+                best_action = action.copy()
         return best_action, best_score
