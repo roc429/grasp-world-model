@@ -9,6 +9,9 @@
 ## 一、Git 提交记录
 
 ```
+38520cc  feat: 随机扰动实验(5维噪声) + 轨迹可视化 + 演讲稿
+763cd58  docs: 工作日志增加改动前后代码对比
+b79f237  docs: 滕涛工作日志 -- 全部改动清单+原因+代码审查修复记录
 f3b7b18  chore: remove accidentally tracked .claude/ + update gitignore
 c547a9f  fix: code review -- gripper attach bug + XML cleanup + remove emoji
 21639ac  chore: DobotDLL驱动验证通过 + 整理滕涛任务状态文档
@@ -710,13 +713,52 @@ def plot_scene_topview(objects, placement_xy=None, ee_pos=None,
 测试1: test_arm_connection.py --all-layouts  →  3/3 布局通过
 测试2: ik_solver.py 自测 (FK→IK→FK)         →  mean_err=0.00mm, n=13
 测试3: test_perception.py                     →  IK ALL PASS, Camera PASS
-测试4: evaluate.py 全流程推抓放               →  3/3 成功
-       Layout 1: 无障碍, 距目标区 35mm
-       Layout 2: 推34.7mm, 距目标区 35mm
-       Layout 3: 推36.7mm, 距目标区 36mm
+测试4: run_task.py --trials 20 (5维随机噪声)  →  60/60 = 100%
+       Layout 1: 终距 33-51mm, 均值 35.7mm
+       Layout 2: 推距 8-53mm, 终距 35-54mm
+       Layout 3: 推距 9-45mm, 5/20次跳过推
 
 DLL驱动: DobotDll.dll 64位加载成功, Python 64位匹配
 ```
+
+---
+
+## 六、今日新增 (2026-06-20)
+
+### 差距分析任务完成
+
+| 任务 | 内容 | 状态 |
+|------|------|------|
+| T1 | 批量实验: run_task.py 修复 + 5维随机噪声 + 60/60=100% | ✅ |
+| T3 | 仿真相机验证: test_perception.py IK PASS + Camera PASS | ✅ |
+| T2 素材 | 轨迹可视化图 3张 + 场景帧 8张 + 演讲稿 | ✅ |
+
+### 新增文件
+
+| 文件 | 内容 |
+|------|------|
+| `docs/presentation_script.md` | 答辩演讲稿（6分钟, 含技术速查表） |
+| `experiments/trajectories/layout*_trajectory.png` | 3张轨迹可视化图 |
+| `experiments/video_frames/layout*_*.png` | 8张场景帧 |
+| `experiments/run_*/results.json` | 60次随机试验数据 |
+
+### 代码改动
+
+| 文件 | 改动 |
+|------|------|
+| `src/world_model/inference.py` | +HeuristicWorldModel: 不需要训练模型即可运行 |
+| `scripts/run_task.py` | 修复硬编码bug + 5维随机噪声 + 结果JSON保存 |
+| `src/simulation/env.py` | +obstacle qpos缓存（初始位置扰动用） |
+
+### 随机噪声参数
+
+| 维度 | 振幅 | 效果 |
+|------|------|------|
+| 物体初始位置 | ±6mm | 每次场景略有不同 |
+| 推起点 | ±10mm | 推杆接触位置变化 |
+| 推角度 | ±23° | 推的方向微调 |
+| 推距离 | ±20mm | 推的力度变化 |
+| 推高度 | ±5mm | 推的接触高度变化 |
 
 ---
 
