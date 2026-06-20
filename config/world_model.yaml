@@ -1,0 +1,22 @@
+data:
+  normalize: true
+  test_ratio: 0.1
+  train_ratio: 0.8
+  val_ratio: 0.1
+model:
+  action_dim: 4
+  dropout: 0.1
+  hidden_dim: 256
+  num_layers: 2
+  state_dim: 10
+  type: mlp
+scoring:
+  collision_penalty: -10.0
+  distance_weight: 0.01
+  graspable_weight: 1.0
+training:
+  batch_size: 64
+  epochs: 100
+  learning_rate: 0.001
+  lr_scheduler: cosine
+  weight_decay: 0.0001
