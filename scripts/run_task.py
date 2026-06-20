@@ -17,6 +17,13 @@ def run_trial(env, arm, wm, planner, layout_id, trial_id, exp_dir, verbose=True)
     scene = load_scene_config(layout_id)
     state = env.reset(layout_id=layout_id)
 
+    # 每次试验加随机初始位置扰动 (±3mm)，模拟真实场景微小差异
+    import mujoco
+    for qpos_adr in [env._target_qpos_adr, env._obstacle_qpos_adr]:
+        noise = np.random.uniform(-6, 6, size=2) / 1000.0  # ±6mm → 米
+        env.data.qpos[qpos_adr:qpos_adr+2] += noise
+    mujoco.mj_forward(env.model, env.data)  # 让物体重新落在桌面上
+
     objs = env.get_objects_state()
     target_init = objs["target"].copy()
     obstacle_init = objs["obstacle"].copy()
@@ -37,17 +44,23 @@ def run_trial(env, arm, wm, planner, layout_id, trial_id, exp_dir, verbose=True)
 
         obstacle_pos = env.get_objects_state()["obstacle"]
 
+        # 每次试验加随机扰动，模拟真实物理不确定性
+        noise_start = np.random.uniform(-10, 10, size=2)  # 起点 ±10mm
+        noise_angle = np.random.uniform(-0.4, 0.4)         # 角度 ±23°
+        noise_dist  = np.random.uniform(-20, 20)            # 距离 ±20mm
+        noise_z     = np.random.uniform(-5, 5)              # 高度 ±5mm
+
         if layout_id == 2:
-            push_start = np.array([obstacle_pos[0] - 5, obstacle_pos[1] - 12])
-            push_angle = np.pi / 2
-            push_dist = 60.0
+            push_start = np.array([obstacle_pos[0] - 5, obstacle_pos[1] - 12]) + noise_start
+            push_angle = np.pi / 2 + noise_angle
+            push_dist = 60.0 + noise_dist
         else:
-            push_start = np.array([obstacle_pos[0] - 5, obstacle_pos[1] + 14])
-            push_angle = -np.pi / 2
-            push_dist = 50.0
+            push_start = np.array([obstacle_pos[0] - 5, obstacle_pos[1] + 14]) + noise_start
+            push_angle = -np.pi / 2 + noise_angle
+            push_dist = 50.0 + noise_dist
 
         env.execute_push(start_xy_mm=push_start, direction_angle=push_angle,
-                         distance_mm=push_dist, z_push_mm=15.0)
+                         distance_mm=push_dist, z_push_mm=15.0 + noise_z)
 
         obstacle_after = env.get_objects_state()["obstacle"]
         push_effect = np.linalg.norm(obstacle_after[:2] - obstacle_pos[:2])
