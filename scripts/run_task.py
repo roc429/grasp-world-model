@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.utils.config import load_config
 from src.simulation.env import SimulationEnv
 from src.simulation.scene_builder import load_scene_config
-from src.world_model.inference import WorldModel
+from src.world_model.inference import WorldModel, HeuristicWorldModel
 from src.robot.sim_arm import SimArm
 
 
@@ -118,7 +118,13 @@ def main():
     arm.connect()
 
     wm_config = load_config("config/world_model.yaml")
-    wm = WorldModel("models/world_model/world_model.pt", wm_config)
+    model_path = "models/world_model/world_model.pt"
+    if os.path.exists(model_path):
+        print("[WM] Using trained world model")
+        wm = WorldModel(model_path, wm_config)
+    else:
+        print("[WM] Using HeuristicWorldModel (no trained model found)")
+        wm = HeuristicWorldModel()
 
     layouts = [1, 2, 3] if args.layout == 0 else [args.layout]
     all_results = []
@@ -172,7 +178,7 @@ def main():
                 "layouts": layouts,
                 "trials_per_layout": args.trials,
                 "planner": args.planner,
-                "world_model": "heuristic" if wm._use_heuristic else "trained",
+                "world_model": "heuristic" if isinstance(wm, HeuristicWorldModel) else "trained",
             },
             "results": all_results,
             "summary": {
