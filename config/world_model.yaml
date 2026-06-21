@@ -1,21 +1,22 @@
-# 世界模型超参数
-model:
-  type: "mlp_gru"
-  state_dim: 10
-  action_dim: 4
-  hidden_dim: 256
-  num_layers: 2
-  dropout: 0.1
-
-training:
-  learning_rate: 0.001
-  batch_size: 64
-  epochs: 100
-  weight_decay: 0.0001
-  lr_scheduler: "cosine"
-
 data:
+  normalize: true
+  test_ratio: 0.1
   train_ratio: 0.8
   val_ratio: 0.1
-  test_ratio: 0.1
-  normalize: true
+model:
+  action_dim: 4
+  dropout: 0.1
+  hidden_dim: 256
+  num_layers: 2
+  state_dim: 10
+  type: mlp
+scoring:
+  collision_penalty: -10.0
+  distance_weight: 0.01
+  graspable_weight: 1.0
+training:
+  batch_size: 64
+  epochs: 100
+  learning_rate: 0.001
+  lr_scheduler: cosine
+  weight_decay: 0.0001
