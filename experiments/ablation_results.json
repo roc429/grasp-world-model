@@ -1,0 +1,44 @@
+{
+  "layout_1": {
+    "heuristic": {
+      "success_rate": 1.0,
+      "avg_steps": 20.0,
+      "avg_replan_count": 20.0,
+      "total_trials": 10
+    },
+    "world_model": {
+      "success_rate": 1.0,
+      "avg_steps": 20.0,
+      "avg_replan_count": 20.0,
+      "total_trials": 10
+    }
+  },
+  "layout_2": {
+    "heuristic": {
+      "success_rate": 1.0,
+      "avg_steps": 20.0,
+      "avg_replan_count": 20.0,
+      "total_trials": 10
+    },
+    "world_model": {
+      "success_rate": 1.0,
+      "avg_steps": 20.0,
+      "avg_replan_count": 20.0,
+      "total_trials": 10
+    }
+  },
+  "layout_3": {
+    "heuristic": {
+      "success_rate": 1.0,
+      "avg_steps": 20.0,
+      "avg_replan_count": 20.0,
+      "total_trials": 10
+    },
+    "world_model": {
+      "success_rate": 1.0,
+      "avg_steps": 20.0,
+      "avg_replan_count": 20.0,
+      "total_trials": 10
+    }
+  }
+}
