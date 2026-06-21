@@ -70,11 +70,15 @@ class SimulationEnv:
         # mocap_pos 的索引是 mocap body 的序号，不是 body id
         self._ee_mocap_id = self.model.body_mocapid[ee_body_id]
 
-        # 缓存 free joint 的 qpos 地址（用于抓取时移动物体）
+        # 缓存 free joint 的 qpos 地址（用于抓取时移动物体 + 初始位置扰动）
         target_joint_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_JOINT, "target_joint")
         self._target_qpos_adr = self.model.jnt_qposadr[target_joint_id]
         self._target_vel_adr = self.model.jnt_dofadr[target_joint_id]
+
+        obstacle_joint_id = mujoco.mj_name2id(
+            self.model, mujoco.mjtObj.mjOBJ_JOINT, "obstacle_joint")
+        self._obstacle_qpos_adr = self.model.jnt_qposadr[obstacle_joint_id]
 
         self._gripper_open = True
         self._gripper_attached = False

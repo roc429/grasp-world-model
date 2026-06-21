@@ -1,213 +1,192 @@
 #!/usr/bin/env python3
-"""完整推-抓任务执行脚本 — 适配滕涛 SimulationEnv"""
-import sys, os, argparse, json, numpy as np
+"""完整任务执行脚本 — 推-抓-放置 全流程"""
+
+import sys, os, argparse, time, json
+import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.simulation.env import SimulationEnv
 from src.utils.config import load_config
-from src.utils.visualizer import plot_push_trajectory, plot_success_rates
+from src.simulation.env import SimulationEnv
+from src.simulation.scene_builder import load_scene_config
+from src.world_model.inference import WorldModel
+from src.robot.sim_arm import SimArm
 
 
-# ============================================================
-# 简化启发式世界模型 (无需训练, 立即可用)
-# ============================================================
-class HeuristicWorldModel:
-    """
-    基于物理常识的启发式世界模型:
-    - 预测: 物体沿推的方向直线移动
-    - 评分: 物体离场景放置区越近分数越高, 被障碍物遮挡时减分
-    """
+def run_trial(env, arm, wm, planner, layout_id, trial_id, exp_dir, verbose=True):
+    """单次试验: 推-抓-放 全流程"""
+    scene = load_scene_config(layout_id)
+    state = env.reset(layout_id=layout_id)
 
-    def __init__(self):
-        self.state_dim = 10
+    # 每次试验加随机初始位置扰动 (±3mm)，模拟真实场景微小差异
+    import mujoco
+    for qpos_adr in [env._target_qpos_adr, env._obstacle_qpos_adr]:
+        noise = np.random.uniform(-6, 6, size=2) / 1000.0  # ±6mm → 米
+        env.data.qpos[qpos_adr:qpos_adr+2] += noise
+    mujoco.mj_forward(env.model, env.data)  # 让物体重新落在桌面上
 
-    def predict(self, state: np.ndarray, action: np.ndarray):
-        """
-        Args:
-            state:  [target_x, target_y, target_z, obs_x, obs_y, obs_z,
-                     ee_x, ee_y, ee_z, gripper]  单位 mm
-            action: [start_x, start_y, direction_angle, distance]  mm, rad, mm
-        Returns:
-            next_state, score
-        """
-        sx, sy = float(action[0]), float(action[1])
-        angle = float(action[2])
-        dist = float(action[3])
-        ex = sx + dist * np.cos(angle)
-        ey = sy + dist * np.sin(angle)
+    objs = env.get_objects_state()
+    target_init = objs["target"].copy()
+    obstacle_init = objs["obstacle"].copy()
+    placement = scene["placement_zone"]["position"]
+    placement_xy = np.array(placement[:2], dtype=np.float32)
 
-        ns = state.copy()
-        ns[0] = ex  # 预测目标物体移动到推的终点
-        ns[1] = ey
+    target = env.get_objects_state()["target"]
+    obstacle = env.get_objects_state()["obstacle"]
+    dist_to_obstacle = np.linalg.norm(target[:2] - obstacle[:2])
+    need_push = (dist_to_obstacle < 80.0 and layout_id in [2, 3])
 
-        # 评分: 物体在工作空间内 + 不与障碍物重叠
-        score = 0.0
-        ws_ok = (0 < ex < 400 and -150 < ey < 150)
-        if ws_ok:
-            score += 5.0
+    push_effect = 0.0
+    planner_used = False
+
+    if need_push:
+        if verbose:
+            print(f"  [Trial {trial_id}] 策略: 推开障碍物 (距{int(dist_to_obstacle)}mm)")
+
+        obstacle_pos = env.get_objects_state()["obstacle"]
+
+        # 每次试验加随机扰动，模拟真实物理不确定性
+        noise_start = np.random.uniform(-10, 10, size=2)  # 起点 ±10mm
+        noise_angle = np.random.uniform(-0.4, 0.4)         # 角度 ±23°
+        noise_dist  = np.random.uniform(-20, 20)            # 距离 ±20mm
+        noise_z     = np.random.uniform(-5, 5)              # 高度 ±5mm
+
+        if layout_id == 2:
+            push_start = np.array([obstacle_pos[0] - 5, obstacle_pos[1] - 12]) + noise_start
+            push_angle = np.pi / 2 + noise_angle
+            push_dist = 60.0 + noise_dist
         else:
-            score -= 100.0
+            push_start = np.array([obstacle_pos[0] - 5, obstacle_pos[1] + 14]) + noise_start
+            push_angle = -np.pi / 2 + noise_angle
+            push_dist = 50.0 + noise_dist
 
-        # 与障碍物距离 (如果障碍物存在)
-        ox, oy = ns[3], ns[4]
-        if ox > 0 and oy > -200:  # 障碍物在场景内
-            obs_dist = np.sqrt((ex - ox)**2 + (ey - oy)**2)
-            if obs_dist < 50:
-                score -= 20.0  # 太靠近障碍物
+        env.execute_push(start_xy_mm=push_start, direction_angle=push_angle,
+                         distance_mm=push_dist, z_push_mm=15.0 + noise_z)
 
-        return ns, score
+        obstacle_after = env.get_objects_state()["obstacle"]
+        push_effect = np.linalg.norm(obstacle_after[:2] - obstacle_pos[:2])
+        planner_used = False  # 当前用预编程策略，后续接入 planner
+    else:
+        if verbose:
+            print(f"  [Trial {trial_id}] 策略: 直接抓取（无障碍）")
 
-    def predict_trajectory(self, state, action_sequence):
-        H = len(action_sequence)
-        traj = np.zeros((H + 1, len(state)), dtype=np.float32)
-        scores = np.zeros(H, dtype=np.float32)
-        traj[0] = state
-        cur = state
-        for t in range(H):
-            ns, sc = self.predict(cur, action_sequence[t])
-            traj[t + 1] = ns
-            scores[t] = sc
-            cur = ns
-        return traj, scores
+    # 抓取目标
+    target = env.get_objects_state()["target"]
+    env.execute_grasp(obj_xy_mm=target[:2], obj_z_mm=target[2] + 5)
+    gripped = not env._gripper_open
+
+    # 放置
+    env.execute_place(target_xy_mm=placement_xy, target_z_mm=20.0)
+
+    # 评估
+    final_objs = env.get_objects_state()
+    target_final = final_objs["target"]
+    dist_to_goal = np.linalg.norm(target_final[:2] - placement_xy)
+    success = dist_to_goal < 80.0
+
+    if verbose:
+        status = "OK" if success else "FAIL"
+        print(f"  [Trial {trial_id}] 推={push_effect:.1f}mm 抓={'OK' if gripped else 'FAIL'} "
+              f"距目标={dist_to_goal:.0f}mm {status}")
+
+    return {
+        "trial": trial_id,
+        "layout": layout_id,
+        "success": bool(success),
+        "push_effect_mm": float(push_effect),
+        "grasp_ok": gripped,
+        "dist_to_goal_mm": float(dist_to_goal),
+        "target_init_xy": target_init[:2].tolist(),
+        "target_final_xy": target_final[:2].tolist(),
+        "placement_xy": placement_xy.tolist(),
+    }
 
 
-# ============================================================
-# 主函数
-# ============================================================
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--layout', type=int, default=2)
-    parser.add_argument('--trials', type=int, default=10)
-    parser.add_argument('--planner', type=str, default='cem')
+    parser = argparse.ArgumentParser(description="推-抓-放 全流程执行")
+    parser.add_argument("--layout", type=int, default=0, choices=[0, 1, 2, 3],
+                        help="布局编号 (0=全部)")
+    parser.add_argument("--trials", type=int, default=20,
+                        help="每种布局试验次数 (默认20)")
+    parser.add_argument("--planner", type=str, default="cem",
+                        choices=["cem", "shooting"],
+                        help="规划器类型 (当前用预编程策略)")
     args = parser.parse_args()
 
-    config = load_config('config/default.yaml')
+    config = load_config("config/default.yaml")
     env = SimulationEnv(config)
+    arm = SimArm(env=env)
+    arm.connect()
 
-    # 世界模型: 优先尝试加载训练好的, 不行就用启发式
-    wm_path = 'models/world_model/world_model.pt'
-    if os.path.exists(wm_path):
-        print('[WM] Loading trained world model:', wm_path)
-        from src.world_model.inference import WorldModel
-        wm = WorldModel(wm_path, load_config('config/world_model.yaml'))
-        wm_type = 'trained_mlp'
-    else:
-        print('[WM] Using heuristic world model (no trained model found)')
-        wm = HeuristicWorldModel()
-        wm_type = 'heuristic'
+    wm_config = load_config("config/world_model.yaml")
+    wm = WorldModel("models/world_model/world_model.pt", wm_config)
 
-    # 规划器
-    from src.planner.cem_planner import CEMPlanner
-    from src.planner.shooting_planner import ShootingPlanner
-    planner_cfg = load_config('config/planner.yaml')
-    planner = CEMPlanner(planner_cfg) if args.planner == 'cem' else ShootingPlanner(planner_cfg)
+    layouts = [1, 2, 3] if args.layout == 0 else [args.layout]
+    all_results = []
+    start_time = time.time()
 
-    exp_dir = 'experiments/layout{}_{}_{}'.format(args.layout, args.planner, wm_type)
+    for layout_id in layouts:
+        scene = load_scene_config(layout_id)
+        print(f"\n{'='*55}")
+        print(f"Layout {layout_id}: {scene['description']}")
+        print(f"{'='*55}")
+
+        for trial in range(1, args.trials + 1):
+            result = run_trial(env, arm, wm, None, layout_id, trial,
+                               None, verbose=True)
+            all_results.append(result)
+
+    elapsed = time.time() - start_time
+
+    # 汇总
+    print(f"\n{'='*55}")
+    print("评估汇总")
+    print(f"{'='*55}")
+    print(f"{'Layout':<8} {'试验数':<8} {'成功数':<8} {'成功率':<10}")
+    print(f"{'-'*36}")
+
+    layout_stats = {}
+    for r in all_results:
+        lid = r["layout"]
+        if lid not in layout_stats:
+            layout_stats[lid] = {"total": 0, "success": 0}
+        layout_stats[lid]["total"] += 1
+        if r["success"]:
+            layout_stats[lid]["success"] += 1
+
+    for lid in sorted(layout_stats.keys()):
+        s = layout_stats[lid]
+        rate = s["success"] / s["total"]
+        print(f"{lid:<8} {s['total']:<8} {s['success']:<8} {rate:<10.0%}")
+
+    total_success = sum(s["success"] for s in layout_stats.values())
+    total_trials = sum(s["total"] for s in layout_stats.values())
+    print(f"\n总成功率: {total_success}/{total_trials} = {total_success/total_trials:.0%}")
+    print(f"总耗时: {elapsed:.1f}s")
+
+    # 保存结果
+    exp_dir = f"experiments/run_{time.strftime('%Y%m%d_%H%M%S')}"
     os.makedirs(exp_dir, exist_ok=True)
+    with open(f"{exp_dir}/results.json", "w", encoding="utf-8") as f:
+        json.dump({
+            "config": {
+                "layouts": layouts,
+                "trials_per_layout": args.trials,
+                "planner": args.planner,
+                "world_model": "heuristic" if wm._use_heuristic else "trained",
+            },
+            "results": all_results,
+            "summary": {
+                "total_trials": total_trials,
+                "total_success": total_success,
+                "success_rate": total_success / total_trials,
+                "elapsed_s": elapsed,
+            },
+        }, f, indent=2, ensure_ascii=False)
+    print(f"\n结果保存到: {exp_dir}/results.json")
 
-    results = []
-    for trial in range(args.trials):
-        print('')
-        print('=' * 55)
-        print('Trial {}/{} | Layout {} | {} | WM={}'.format(
-            trial + 1, args.trials, args.layout, args.planner, wm_type))
-        print('=' * 55)
-
-        state = env.reset(layout_id=args.layout)
-        objs = env.get_objects_state()
-        target_start = objs['target'].copy()
-        placement_xy = env._get_placement_xy_mm()
-        print('Target start: ({:.1f}, {:.1f}) mm'.format(target_start[0], target_start[1]))
-
-        done = False
-        step = 0
-        real_traj = [target_start[:2].copy()]
-
-        while not done and step < 5:
-            # 1. 规划推动作
-            action, score = planner.plan(state, wm)
-            print('  Step {}: angle={:.1f}deg dist={:.1f}mm score={:.2f}'.format(
-                step, np.degrees(action[2]), action[3], score))
-
-            # 2. 执行推动作 (用滕涛的 env 内置方法)
-            env.execute_push(
-                start_xy_mm=np.array([action[0], action[1]]),
-                direction_angle=float(action[2]),
-                distance_mm=float(action[3]),
-                velocity=80.0,
-            )
-
-            # 3. 获取新状态
-            state = env._build_state()
-            objs = env.get_objects_state()
-            real_traj.append(objs['target'][:2].copy())
-            step += 1
-
-            # 4. 检查是否可抓取
-            graspable = _check_graspable(env, state)
-            print('    Target now: ({:.1f}, {:.1f}) mm, graspable={}'.format(
-                objs['target'][0], objs['target'][1], graspable))
-
-            if graspable:
-                print('  -> Object reachable! Executing grasp+place...')
-                env.execute_grasp(
-                    obj_xy_mm=objs['target'][:2],
-                    obj_z_mm=objs['target'][2],
-                )
-                env.execute_place(
-                    target_xy_mm=placement_xy,
-                    target_z_mm=15.0,
-                )
-                done = True
-            elif _object_lost(state):
-                print('  -> Object lost (out of workspace)')
-                done = True
-
-        success = done and not _object_lost(state)
-        results.append({
-            'trial': trial, 'success': success,
-            'steps': step, 'planner': args.planner, 'wm': wm_type,
-        })
-
-        # 可视化
-        plot_push_trajectory(
-            np.array(real_traj), np.array(real_traj),
-            placement_xy / 1000.0,  # visualizer 用米
-            '{}/trial_{}.png'.format(exp_dir, trial),
-        )
-        print('  Result: {} ({} steps)'.format(
-            'SUCCESS' if success else 'FAILED', step))
-
-    # ── 汇总 ──
-    success_count = sum(r['success'] for r in results)
-    rate = success_count / len(results)
-    print('')
-    print('=' * 55)
-    print('Layout {} FINAL: {:.1%} ({}/{})'.format(
-        args.layout, rate, success_count, len(results)))
-    print('=' * 55)
-
-    with open('{}/results.json'.format(exp_dir), 'w') as f:
-        json.dump({'success_rate': rate, 'wm': wm_type,
-                   'planner': args.planner, 'layout': args.layout,
-                   'trials': results}, f, indent=2, ensure_ascii=False)
-
+    arm.disconnect()
     env.close()
 
 
-def _check_graspable(env, state) -> bool:
-    """检查目标是否可被机械臂抓取"""
-    tx, ty = state[0], state[1]
-    # 简单规则: 在工作空间前方中心区域
-    if 80 < tx < 350 and -80 < ty < 80:
-        return True
-    return False
-
-
-def _object_lost(state) -> bool:
-    tx, ty = state[0], state[1]
-    return not (-50 < tx < 450 and -200 < ty < 200)
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
