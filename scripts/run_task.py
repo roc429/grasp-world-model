@@ -103,14 +103,42 @@ def run_trial(env, arm, wm, planner, layout_id, trial_id, exp_dir, verbose=True)
 
 
 # ── 实机对象坐标常量（与物理场景布局一致） ──
-DOBOT_SCENES = {
-    1: {"target": np.array([200, 0]), "obstacle": np.array([250, 80]),
-        "placement": np.array([250, -80]), "z": 10.0},
-    2: {"target": np.array([230, 0]), "obstacle": np.array([180, 0]),
-        "placement": np.array([200, -100]), "z": 10.0},
-    3: {"target": np.array([80, -110]), "obstacle": np.array([150, -80]),
-        "placement": np.array([200, 80]), "z": 10.0},
+# 优先从 config/dobot_scenes.json 加载（示教后生成）
+# 否则使用默认仿真坐标（需要根据实际 Dobot 位置调整）
+import json as _json
+_DEFAULT_SCENES = {
+    1: {"target": [200, 0], "obstacle": [250, 80],
+        "placement": [250, -80], "z": 10.0},
+    2: {"target": [230, 0], "obstacle": [180, 0],
+        "placement": [200, -100], "z": 10.0},
+    3: {"target": [80, -110], "obstacle": [150, -80],
+        "placement": [200, 80], "z": 10.0},
 }
+
+def _load_dobot_scenes():
+    """加载实机场最坐标: JSON 文件优先，否则用默认值"""
+    json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                             "config", "dobot_scenes.json")
+    if os.path.exists(json_path):
+        with open(json_path) as f:
+            data = _json.load(f)
+        scenes = {}
+        for k, v in data.items():
+            scenes[int(k)] = {
+                "target": np.array(v["target"]),
+                "obstacle": np.array(v["obstacle"]),
+                "placement": np.array(v["placement"]),
+                "z": v.get("z", 10.0),
+            }
+        print(f"[Dobot] Loaded calibrated scenes from {json_path}")
+        return scenes
+    print("[Dobot] Using default scene coordinates (not calibrated)")
+    return {k: {"target": np.array(v["target"]),
+                "obstacle": np.array(v["obstacle"]),
+                "placement": np.array(v["placement"]),
+                "z": v["z"]} for k, v in _DEFAULT_SCENES.items()}
+
+DOBOT_SCENES = _load_dobot_scenes()
 
 
 def run_trial_dobot(arm, layout_id, trial_id, verbose=True):
@@ -121,6 +149,11 @@ def run_trial_dobot(arm, layout_id, trial_id, verbose=True):
     obstacle_xy = scene["obstacle"].copy()
     placement_xy = scene["placement"].copy()
     obj_z = scene["z"]
+
+    # 诊断: 打印当前机械臂位姿
+    pose = arm.get_pose()
+    if verbose:
+        print(f"  [Dobot] Current pose: x={pose.x:.0f} y={pose.y:.0f} z={pose.z:.0f}")
 
     dist_to_obstacle = np.linalg.norm(target_xy - obstacle_xy)
     need_push = (dist_to_obstacle < 80.0 and layout_id in [2, 3])
@@ -162,15 +195,26 @@ def run_trial_dobot(arm, layout_id, trial_id, verbose=True):
             "z_push": float(z_push),
         }))
 
+        # 推动作后诊断: 确认机械臂位姿正常
+        pose_after = arm.get_pose()
+        if verbose:
+            print(f"         [诊断] 推后位姿: x={pose_after.x:.0f} y={pose_after.y:.0f} z={pose_after.z:.0f}")
+
         # 推动作后估计障碍物新位置
         obstacle_xy_after = obstacle_xy.copy()
         obstacle_xy_after[0] += push_dist * np.cos(push_angle)
         obstacle_xy_after[1] += push_dist * np.sin(push_angle)
-        push_effect = push_dist  # 物理世界中推距非精确，取指令值近似
+        push_effect = push_dist
         planner_used = False
     else:
         if verbose:
             print(f"  [Trial {trial_id}] 策略: 直接抓取（无障碍）")
+
+    # 抓取前诊断
+    if verbose:
+        pose = arm.get_pose()
+        print(f"         [诊断] 准备抓取, 当前位姿: x={pose.x:.0f} y={pose.y:.0f} z={pose.z:.0f}")
+        print(f"         目标位置: ({target_xy[0]:.0f}, {target_xy[1]:.0f}, {obj_z+5:.0f})")
 
     # 抓取
     if verbose:
