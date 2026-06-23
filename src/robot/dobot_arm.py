@@ -57,9 +57,9 @@ class DobotArm(ArmController):
     """
 
     # ── 工作空间安全边界 (mm) ──────────────────────────
-    SAFE_X_RANGE = (50, 300)
-    SAFE_Y_RANGE = (-150, 150)
-    SAFE_Z_RANGE = (-20, 150)
+    SAFE_X_RANGE = (-50, 300)
+    SAFE_Y_RANGE = (-200, 200)
+    SAFE_Z_RANGE = (-30, 150)
     DEFAULT_VELOCITY = 50       # 速度百分比 (0-100)
     DEFAULT_ACCELERATION = 50   # 加速度百分比 (0-100)
 
@@ -109,14 +109,24 @@ class DobotArm(ArmController):
         self._connected = True
         logger.info("Dobot 连接成功！")
 
-        # 清空指令队列，开始执行
+        # 清空指令队列
         dType.SetQueuedCmdClear(self.api)
-        dType.SetQueuedCmdStartExec(self.api)
 
-        # 设置安全速度/加速度
-        dType.SetPTPCommonParams(
-            self.api, self._velocity_ratio, self._acceleration_ratio, isQueued=1
-        )
+        # 先排队初始化参数（参考官方 DobotControl.py 流程）
+        # HOME 参数 — 回零速度/加速度
+        dType.SetHOMEParams(self.api, 200, 200, 200, 200, isQueued=1)
+
+        # 关节运动参数 — 各关节速度/加速度
+        v = self._velocity_ratio
+        a = self._acceleration_ratio
+        dType.SetPTPJointParams(self.api, v, a, v, a, v, a, v, a, isQueued=1)
+
+        # 笛卡尔运动公共参数
+        dType.SetPTPCommonParams(self.api, v, a, isQueued=1)
+
+        # 所有初始化指令排队完成后，启动队列执行
+        dType.SetQueuedCmdStartExec(self.api)
+        self._queue_started = True  # 标记队列已启动
 
         # 读取当前位姿确认通信正常
         pose = self.get_pose()
@@ -259,7 +269,8 @@ class DobotArm(ArmController):
             return False
 
         logger.debug(f"夹爪: {'闭合' if grip else '松开'}")
-        dType.SetEndEffectorGripper(self.api, enable=True, grip=grip, isQueued=1)
+        # isQueued=0: 直接执行，不进入队列（避免夹爪不存在时阻塞整个队列）
+        dType.SetEndEffectorGripper(self.api, True, grip, 0)
         time.sleep(0.3)  # 等待夹爪动作完成
         return True
 
@@ -274,7 +285,7 @@ class DobotArm(ArmController):
             return False
 
         logger.debug(f"吸盘: {'吸' if suck else '放'}")
-        dType.SetEndEffectorSuctionCup(self.api, enable=True, suck=suck, isQueued=1)
+        dType.SetEndEffectorSuctionCup(self.api, True, suck, 1)
         time.sleep(0.3)
         return True
 
@@ -321,9 +332,11 @@ class DobotArm(ArmController):
 
     def _wait_for_completion(self, last_index: int, timeout: float = 10.0):
         """等待指定索引的指令执行完成"""
+        # 确保队列正在执行（官方 demo 在排队所有指令后才 StartExec）
+        dType.SetQueuedCmdStartExec(self.api)
         start = time.time()
         while time.time() - start < timeout:
-            dType.dSleep(50)  # Dobot DLL 提供的毫秒级 sleep
+            dType.dSleep(50)
             current_idx = dType.GetQueuedCmdCurrentIndex(self.api)[0]
             if current_idx >= last_index:
                 return
@@ -332,14 +345,18 @@ class DobotArm(ArmController):
     def _wait_for_queue_empty(self, timeout: float = 10.0):
         """等待指令队列清空"""
         start = time.time()
+        last_idx = -1
+        stable_count = 0
         while time.time() - start < timeout:
-            dType.dSleep(50)
-            # 检查剩余指令数
-            left = dType.GetQueuedCmdLeftSpace(self.api)[0]
-            # left_space 返回队列剩余空间，接近最大值说明队列空了
-            # 实际的队列总大小取决于固件，通常为 32
-            if left >= 30:
-                return
+            dType.dSleep(100)
+            current_idx = dType.GetQueuedCmdCurrentIndex(self.api)[0]
+            if current_idx == last_idx:
+                stable_count += 1
+                if stable_count >= 5:  # 连续 5 次不变 = 队列空闲
+                    return
+            else:
+                stable_count = 0
+                last_idx = current_idx
         logger.warning(f"队列等待超时 ({timeout}s)")
 
 

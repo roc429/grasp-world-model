@@ -34,11 +34,11 @@ planner:
   elite_ratio: 0.2
 
 arm:
-  type: "sim"
-  port: "/dev/ttyUSB0"
+  type: "dobot"
+  port: "COM3"
   baudrate: 115200
-  velocity_ratio: 50
-  acceleration_ratio: 50
+  velocity_ratio: 30
+  acceleration_ratio: 30
   z_safe: 30
 
 experiment:
